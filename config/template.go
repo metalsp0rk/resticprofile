@@ -148,16 +148,22 @@ func resolveMapValue(data TemplateData, sourceMap, key, value reflect.Value) err
 		currentValue.Type().Elem().Kind() == reflect.Interface {
 		// this is getting hairy: you cannot change any value inside the slice referenced by a map
 		// so we need to create a temp reflect.Value of the slice
-		temp := reflect.ValueOf(make([]interface{}, currentValue.Len()))
-		reflect.Copy(temp, currentValue)
-		for index := 0; index < temp.Len(); index++ {
-			err := resolveValue(data, temp.Index(index))
+		// temp := reflect.ValueOf(make([]interface{}, currentValue.Len()))
+		// reflect.Copy(temp, currentValue)
+		// for index := 0; index < temp.Len(); index++ {
+		// 	err := resolveValue(data, temp.Index(index))
+		// 	if err != nil {
+		// 		return fmt.Errorf("index %d: %w", index, err)
+		// 	}
+		// }
+		// and copy this new slice into the map
+		// sourceMap.SetMapIndex(key, temp)
+		for index := 0; index < currentValue.Len(); index++ {
+			err := resolveValue(data, currentValue.Index(index))
 			if err != nil {
 				return fmt.Errorf("index %d: %w", index, err)
 			}
 		}
-		// and copy this new slice into the map
-		sourceMap.SetMapIndex(key, temp)
 		return nil
 	}
 

@@ -1,6 +1,11 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
 	"github.com/creativeprojects/clog"
 	"github.com/creativeprojects/resticprofile/constants"
 )
@@ -240,6 +245,28 @@ func (p *Profile) Schedules() []*ScheduleConfig {
 		configs = append(configs, config)
 	}
 	return configs
+}
+
+// NewTemplateData populates a TemplateData struct from the profile
+func (p *Profile) NewTemplateData() TemplateData {
+	wd, _ := os.Getwd()
+	env := make(map[string]string, len(os.Environ()))
+	for _, envValue := range os.Environ() {
+		keyValuePair := strings.SplitN(envValue, "=", 2)
+		if keyValuePair[0] == "" {
+			continue
+		}
+		env[keyValuePair[0]] = keyValuePair[1]
+	}
+	return TemplateData{
+		Profile: ProfileTemplateData{
+			Name: p.Name,
+		},
+		Now:        time.Now(),
+		ConfigDir:  filepath.Dir(p.config.GetConfigFile()),
+		CurrentDir: wd,
+		Env:        env,
+	}
 }
 
 func addOtherFlags(flags map[string][]string, otherFlags map[string]interface{}) map[string][]string {

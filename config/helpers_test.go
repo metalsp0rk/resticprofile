@@ -30,7 +30,9 @@ func getResolvedProfile(configFormat, configString, profileKey string) (*Profile
 		Profile: ProfileTemplateData{
 			Name: profile.Name,
 		},
-		Now: time.Now(),
+		Now:        time.Now(),
+		ConfigDir:  "ConfigDir",
+		CurrentDir: "CurrentDir",
 	}
 	err = ResolveProfileTemplate(data, profile)
 	if err != nil {

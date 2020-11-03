@@ -73,6 +73,7 @@ For the rest of the documentation, I'll be mostly showing examples using the TOM
       * [Examples of scheduling commands under macOS](#examples-of-scheduling-commands-under-macos)
     * [Changing schedule\-permission from user to system, or system to user](#changing-schedule-permission-from-user-to-system-or-system-to-user)
   * [Status file for easy monitoring](#status-file-for-easy-monitoring)
+  * [Variable expansion in configuration file](#variable-expansion-in-configuration-file)
   * [Configuration file reference](#configuration-file-reference)
   * [Appendix](#appendix)
   * [Using resticprofile and systemd](#using-resticprofile-and-systemd)
@@ -1142,6 +1143,51 @@ Here's an example of a generated file, where you can see that the last check fai
   }
 }
 ```
+## Variable expansion in configuration file
+
+Sometimes it's easier to have a big configuration that you can reuse everywhere.
+You can use variables in the resticprofile configuration file like so:
+
+```yaml
+src:
+    lock: "$HOME/resticprofile-profile-{{ .Profile.Name }}.lock"
+    backup:
+        check-before: true
+        exclude:
+        - /**/.git
+        exclude-caches: true
+        one-file-system: false
+        run-after: echo All Done!
+        run-before:
+        - "echo Hello {{ .Env.LOGNAME }}"
+        - "echo current dir {{ .CurrentDir }}"
+        - "echo config dir {{ .ConfigDir }}"
+        - "echo profile started at {{ .Now }}"
+        source:
+        - "{{ .Env.HOME }}/go/src"
+        tag:
+        - "{{ .Profile.Name }}"
+        - dev
+    inherit: default
+    initialize: true
+    retention:
+        after-backup: true
+        before-backup: false
+        compact: false
+        keep-within: 30d
+        prune: true
+    snapshots:
+        tag:
+        - "{{ .Profile.Name }}"
+        - dev
+```
+
+The list of available variables is:
+- .Profile.Name
+- .Now
+- .CurrentDir
+- .ConfigDir
+- .Env.{NAME}
 
 ## Configuration file reference
 

@@ -169,3 +169,19 @@ inherit = "profile1"
 
 	assert.Equal(t, "/tmp/profile2.lock", profile.Lock)
 }
+
+func TestResolveSnapshotTag(t *testing.T) {
+	clog.SetTestLog(t)
+	defer clog.CloseTestLog()
+
+	testConfig := `
+[profile1]
+[profile1.snapshots]
+tag = ["test", "{{ .Profile.Name }}"]
+`
+	profile, err := getResolvedProfile("toml", testConfig, "profile1")
+	require.NoError(t, err)
+	require.NotEmpty(t, profile)
+
+	assert.Contains(t, profile.Snapshots["tag"], "profile1")
+}

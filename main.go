@@ -290,6 +290,9 @@ func runProfile(
 		return fmt.Errorf("cannot load profile '%s'", profileName)
 	}
 
+	// fill in config variables
+	config.ResolveProfileTemplate(profile.NewTemplateData(), profile)
+
 	// Send the quiet/verbose down to restic as well (override profile configuration)
 	if flags.quiet {
 		profile.Quiet = true

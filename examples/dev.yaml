@@ -13,7 +13,7 @@ default:
         tmp: /tmp
     initialize: false
     password-file: key
-    repository: /Volumes/RAMDisk
+    repository: /Volumes/RAMDisk/{{ .Profile.Name }}
 
 documents:
     inherit: default
@@ -100,7 +100,7 @@ system:
         schedule-permission: system
 
 src:
-    lock: "/tmp/resticprofile-profile-src.lock"
+    lock: "/tmp/resticprofile-profile-{{ .Profile.Name }}.lock"
     backup:
         check-before: true
         exclude:
@@ -109,7 +109,7 @@ src:
         one-file-system: false
         run-after: echo All Done!
         run-before:
-        - echo Starting!
+        - echo Starting {{ .Profile.Name }}!
         - ls -al ~/go
         source:
         - ~/go

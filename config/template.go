@@ -5,23 +5,29 @@ import (
 	"reflect"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/creativeprojects/clog"
 )
 
-// ProfileTemplate contain the variables fed to a config template
-type ProfileTemplate struct {
-	Profile *Profile
+// TemplateData contain the variables fed to a config template
+type TemplateData struct {
+	Profile    ProfileTemplateData
+	Now        time.Time
+	CurrentDir string
+	ConfigDir  string
 }
 
-func ResolveProfileTemplate(profile *Profile) error {
-	data := ProfileTemplate{
-		Profile: profile,
-	}
+// ProfileTemplateData contains profile data
+type ProfileTemplateData struct {
+	Name string
+}
+
+func ResolveProfileTemplate(data TemplateData, profile *Profile) error {
 	return resolveProfileTemplate(data, profile)
 }
 
-func resolveProfileTemplate(data ProfileTemplate, item interface{}) error {
+func resolveProfileTemplate(data TemplateData, item interface{}) error {
 	typeOf := reflect.TypeOf(item)
 	valueOf := reflect.ValueOf(item)
 
@@ -36,8 +42,9 @@ func resolveProfileTemplate(data ProfileTemplate, item interface{}) error {
 		return fmt.Errorf("unsupported type %s, expected %s", typeOf.Kind(), reflect.Struct)
 	}
 
-	for i := 0; i < typeOf.NumField(); i++ {
-		field := typeOf.Field(i)
+	// go through all the fields of the struct
+	for fieldIndex := 0; fieldIndex < typeOf.NumField(); fieldIndex++ {
+		field := typeOf.Field(fieldIndex)
 
 		// we only consider the fields with a mapstructure tag,
 		// because any other field would not be coming from the configuration file
@@ -45,68 +52,102 @@ func resolveProfileTemplate(data ProfileTemplate, item interface{}) error {
 			if key == "" {
 				continue
 			}
-			if valueOf.Field(i).Kind() == reflect.Ptr {
-				if valueOf.Field(i).IsNil() {
+			if valueOf.Field(fieldIndex).Kind() == reflect.Ptr {
+				if valueOf.Field(fieldIndex).IsNil() {
 					continue
 				}
 				// start of a new pointer to a struct
-				clog.Debugf("*struct %s", key)
-				err := resolveProfileTemplate(data, valueOf.Field(i).Elem().Interface())
+				err := resolveProfileTemplate(data, valueOf.Field(fieldIndex).Elem().Interface())
 				if err != nil {
 					return err
 				}
 				continue
 			}
-			if valueOf.Field(i).Kind() == reflect.Struct {
+			if valueOf.Field(fieldIndex).Kind() == reflect.Struct {
 				// start of a new struct
-				clog.Debugf("struct %s", key)
-				err := resolveProfileTemplate(data, valueOf.Field(i).Interface())
+				err := resolveProfileTemplate(data, valueOf.Field(fieldIndex).Interface())
 				if err != nil {
 					return err
 				}
 				continue
 			}
-			if valueOf.Field(i).Kind() == reflect.Map {
-				if valueOf.Field(i).Len() == 0 {
+			if (valueOf.Field(fieldIndex).Kind() == reflect.Slice || valueOf.Field(fieldIndex).Kind() == reflect.Array) &&
+				valueOf.Field(fieldIndex).Type().Elem().Kind() == reflect.String {
+				for index := 0; index < valueOf.Field(fieldIndex).Len(); index++ {
+					// key and value are the same reflect.Value in this case
+					err := resolveValue(data, valueOf.Field(fieldIndex).Index(index))
+					if err != nil {
+						return fmt.Errorf("field %s[%d]: %w", typeOf.Field(fieldIndex).Name, index, err)
+					}
+				}
+			}
+			if valueOf.Field(fieldIndex).Kind() == reflect.Map {
+				if valueOf.Field(fieldIndex).Len() == 0 {
 					continue
 				}
-				clog.Debugf("map %s", key)
-				iter := valueOf.Field(i).MapRange()
+				iter := valueOf.Field(fieldIndex).MapRange()
 				for iter.Next() {
-					resolve, newValue, err := resolveField(data, iter.Key().String(), iter.Value())
+					err := resolveMapValue(data, valueOf.Field(fieldIndex), iter.Key(), iter.Value())
 					if err != nil {
-						return err
-					}
-					if resolve {
-						if !iter.Key().CanSet() {
-							return fmt.Errorf("cannot set value of %s", iter.Key().String())
-						}
-						iter.Key().SetString(newValue)
+						return fmt.Errorf("key \"%s\": %w", iter.Key(), err)
 					}
 				}
 				continue
 			}
-			resolve, newValue, err := resolveField(data, typeOf.Field(i).Name+">"+key, valueOf.Field(i))
+			err := resolveValue(data, valueOf.Field(fieldIndex))
 			if err != nil {
-				return err
-			}
-			if resolve {
-				if !valueOf.Field(i).CanSet() {
-					return fmt.Errorf("cannot set value of %s", typeOf.Field(i).Name)
-				}
-				valueOf.Field(i).SetString(newValue)
+				return fmt.Errorf("field %s: %w", typeOf.Field(fieldIndex).Name, err)
 			}
 		}
 	}
 	return nil
 }
 
-func resolveField(data ProfileTemplate, key string, valueOf reflect.Value) (bool, string, error) {
+func resolveMapValue(data TemplateData, sourceMap, key, value reflect.Value) error {
+	currentValue := value
+	if currentValue.Kind() == reflect.Interface {
+		// take the actual value from inside the interface
+		currentValue = currentValue.Elem()
+	}
+
+	resolve, newValue, err := resolveField(data, currentValue)
+	if err != nil {
+		return err
+	}
+	if resolve {
+		sourceMap.SetMapIndex(key, reflect.ValueOf(newValue))
+	}
+	return nil
+}
+
+func resolveValue(data TemplateData, value reflect.Value) error {
+	// our value shouldn't be of interface type - keep it in case we change our mind
+	currentValue := value
+	if currentValue.Kind() == reflect.Interface {
+		clog.Debugf("found interface value: %v", currentValue)
+		// take the actual value from inside the interface
+		currentValue = currentValue.Elem()
+	}
+
+	resolve, newValue, err := resolveField(data, currentValue)
+	if err != nil {
+		return err
+	}
+	if resolve {
+		if !currentValue.CanSet() {
+			// it shouldn't happen but it's still better than panic :p
+			return fmt.Errorf("cannot set value of '%s', kind %v", currentValue.String(), currentValue.Kind())
+		}
+		currentValue.SetString(newValue)
+	}
+	return nil
+}
+
+func resolveField(data TemplateData, valueOf reflect.Value) (bool, string, error) {
 	if valueOf.Kind() != reflect.String {
 		return false, "", nil
 	}
 	resolve := strings.Contains(valueOf.String(), "{{") && strings.Contains(valueOf.String(), "}}")
-	clog.Debugf("(%v) %s: %v", resolve, key, valueOf.String())
 
 	tmpl, err := template.New("").Parse(valueOf.String())
 	if err != nil {

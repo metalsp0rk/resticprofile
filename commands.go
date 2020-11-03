@@ -6,12 +6,14 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"sort"
 	"strconv"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/creativeprojects/clog"
 	"github.com/creativeprojects/resticprofile/config"
@@ -246,6 +248,17 @@ func showProfile(c *config.Config, flags commandLineFlags, args []string) error 
 	}
 	if profile == nil {
 		return fmt.Errorf("profile '%s' not found", flags.name)
+	}
+	// resolve profile template
+	err = config.ResolveProfileTemplate(config.TemplateData{
+		Profile: config.ProfileTemplateData{
+			Name: profile.Name,
+		},
+		Now:       time.Now(),
+		ConfigDir: filepath.Dir(c.GetConfigFile()),
+	}, profile)
+	if err != nil {
+		return fmt.Errorf("template error in profile '%s': %w", flags.name, err)
 	}
 	fmt.Printf("\n%s:\n", flags.name)
 	config.ShowStruct(os.Stdout, profile)

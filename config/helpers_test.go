@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"time"
 )
 
 // Helpers for tests
@@ -16,5 +17,25 @@ func getProfile(configFormat, configString, profileKey string) (*Profile, error)
 	if err != nil {
 		return nil, err
 	}
+	return profile, nil
+}
+
+func getResolvedProfile(configFormat, configString, profileKey string) (*Profile, error) {
+	profile, err := getProfile(configFormat, configString, profileKey)
+	if err != nil {
+		return nil, err
+	}
+
+	data := TemplateData{
+		Profile: ProfileTemplateData{
+			Name: profile.Name,
+		},
+		Now: time.Now(),
+	}
+	err = ResolveProfileTemplate(data, profile)
+	if err != nil {
+		return nil, err
+	}
+
 	return profile, nil
 }

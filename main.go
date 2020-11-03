@@ -25,7 +25,7 @@ import (
 
 // These fields are populated by the goreleaser build
 var (
-	version = "0.9.2-dev"
+	version = "0.10.0-dev"
 	commit  = ""
 	date    = ""
 	builtBy = ""

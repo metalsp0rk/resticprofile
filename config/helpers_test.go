@@ -12,7 +12,7 @@ func getProfile(configFormat, configString, profileKey string) (*Profile, error)
 		return nil, err
 	}
 
-	profile, err := c.GetProfile(profileKey)
+	profile, err := c.getProfile(profileKey)
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +25,7 @@ func getResolvedProfile(configFormat, configString, profileKey string) (*Profile
 		return nil, err
 	}
 
-	profile, err := c.GetProfileFromTemplate(profileKey)
+	profile, err := c.GetProfile(profileKey)
 	if err != nil {
 		return nil, err
 	}

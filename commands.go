@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"sort"
@@ -240,13 +241,21 @@ func showProfile(c *config.Config, flags commandLineFlags, args []string) error 
 	config.ShowStruct(os.Stdout, global)
 
 	// Then show profile
-	profile, err := c.GetProfileFromTemplate(flags.name)
+	profile, err := c.GetProfile(flags.name)
 	if err != nil {
 		return fmt.Errorf("cannot show profile '%s': %w", flags.name, err)
 	}
 	if profile == nil {
 		return fmt.Errorf("profile '%s' not found", flags.name)
 	}
+	// All files in the configuration are relative to the configuration file, NOT the folder where resticprofile is started
+	// So we need to fix all relative files
+	rootPath := filepath.Dir(c.GetConfigFile())
+	if rootPath != "." {
+		clog.Debugf("files in configuration are relative to '%s'", rootPath)
+	}
+	profile.SetRootPath(rootPath)
+
 	fmt.Printf("\n%s:\n", flags.name)
 	config.ShowStruct(os.Stdout, profile)
 	return nil

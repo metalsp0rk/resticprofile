@@ -17,10 +17,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-const (
-	rootTemplate = "___root_template___"
-)
-
 // Config wraps up a viper configuration object
 type Config struct {
 	keyDelim       string
@@ -101,7 +97,7 @@ func (c *Config) loadTemplate(input io.Reader) error {
 	if err != nil {
 		return err
 	}
-	c.sourceTemplate, err = template.New(rootTemplate).Parse(inputString.String())
+	c.sourceTemplate, err = template.New(filepath.Base(c.configFile)).Parse(inputString.String())
 	if err != nil {
 		return fmt.Errorf("cannot compile %w", err)
 	}
@@ -281,19 +277,19 @@ func (c *Config) loadGroups() error {
 	return nil
 }
 
-// GetProfileFromTemplate in configuration
-func (c *Config) GetProfileFromTemplate(profileKey string) (*Profile, error) {
+// GetProfile in configuration
+func (c *Config) GetProfile(profileKey string) (*Profile, error) {
 	if c.sourceTemplate != nil {
 		err := c.reloadTemplate(newTemplateData(c.configFile, profileKey))
 		if err != nil {
 			return nil, err
 		}
 	}
-	return c.GetProfile(profileKey)
+	return c.getProfile(profileKey)
 }
 
-// GetProfile from configuration
-func (c *Config) GetProfile(profileKey string) (*Profile, error) {
+// getProfile from configuration
+func (c *Config) getProfile(profileKey string) (*Profile, error) {
 	var err error
 	var profile *Profile
 
@@ -309,7 +305,7 @@ func (c *Config) GetProfile(profileKey string) (*Profile, error) {
 	if profile.Inherit != "" {
 		inherit := profile.Inherit
 		// Load inherited profile
-		profile, err = c.GetProfile(inherit)
+		profile, err = c.getProfile(inherit)
 		if err != nil {
 			return nil, err
 		}

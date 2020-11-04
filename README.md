@@ -1202,6 +1202,47 @@ src:
 
 This is obviously not a real world example, but it shows all the possibilities you can do with variable expansion.
 
+To check the generated configuration, you can use the restiprofile `show` command:
+
+```
+% resticprofile -c examples/template.yaml -n src show
+
+global:
+    default-command:  snapshots
+    restic-binary:    restic
+    min-memory:       100
+
+
+src:
+    backup:
+        check-before:    true
+        run-before:      echo Hello CP
+                         echo current dir: /Users/CP/go/src/resticprofile
+                         echo config dir: /Users/CP/go/src/resticprofile/examples
+                         echo profile started at 04 Nov 20 21:56 GMT
+        run-after:       echo All Done!
+        source:          /Users/CP/go/src
+        tag:             src
+                         dev
+        exclude:         /**/.git
+        exclude-caches:  true
+
+    retention:
+        after-backup:  true
+        keep-within:   30d
+        prune:         true
+        tag:           src
+                       dev
+
+    repository:     /backup/Wednesday
+    password-file:  /Users/CP/go/src/resticprofile/examples/src-key
+    initialize:     true
+    lock:           /Users/CP/resticprofile-profile-src.lock
+    snapshots:
+        tag:  src
+              dev
+```
+
 Here's a more realistic configuration taken from one of my linux boxes:
 
 ```ini

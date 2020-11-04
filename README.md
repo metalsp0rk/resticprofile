@@ -1149,8 +1149,12 @@ Sometimes it's easier to have a big configuration that you can reuse everywhere.
 You can use variables in the resticprofile configuration file like so:
 
 ```yaml
-src:
+---
+generic:
+    password-file: "{{ .ConfigDir }}/{{ .Profile.Name }}-key"
+    repository: /backup/{{ .Now.Weekday }}
     lock: "$HOME/resticprofile-profile-{{ .Profile.Name }}.lock"
+    initialize: true
     backup:
         check-before: true
         exclude:
@@ -1160,16 +1164,12 @@ src:
         run-after: echo All Done!
         run-before:
         - "echo Hello {{ .Env.LOGNAME }}"
-        - "echo current dir {{ .CurrentDir }}"
-        - "echo config dir {{ .ConfigDir }}"
-        - "echo profile started at {{ .Now }}"
-        source:
-        - "{{ .Env.HOME }}/go/src"
+        - "echo current dir: {{ .CurrentDir }}"
+        - "echo config dir: {{ .ConfigDir }}"
+        - "echo profile started at {{ .Now.Format \"02 Jan 06 15:04 MST\" }}"
         tag:
         - "{{ .Profile.Name }}"
         - dev
-    inherit: default
-    initialize: true
     retention:
         after-backup: true
         before-backup: false
@@ -1180,7 +1180,16 @@ src:
         tag:
         - "{{ .Profile.Name }}"
         - dev
+
+src:
+    inherit: generic
+    backup:
+        source:
+        - "{{ .Env.HOME }}/go/src"
+
 ```
+
+This is obviously not a real world example, but it shows all the possibilities you can do with variable expansion.
 
 The list of available variables is:
 - .Profile.Name

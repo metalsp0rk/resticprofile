@@ -249,7 +249,7 @@ func showProfile(c *config.Config, flags commandLineFlags, args []string) error 
 	}
 	// resolve profile template
 	templData := profile.NewTemplateData()
-	err = config.ResolveProfileVariables(templData, profile)
+	err = profile.ResolveTemplates(templData)
 	if err != nil {
 		return fmt.Errorf("template error in profile '%s': %w", flags.name, err)
 	}

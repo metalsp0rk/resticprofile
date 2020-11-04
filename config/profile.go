@@ -249,7 +249,11 @@ func (p *Profile) Schedules() []*ScheduleConfig {
 
 // NewTemplateData populates a TemplateData struct from the profile
 func (p *Profile) NewTemplateData() TemplateData {
-	wd, _ := os.Getwd()
+	currentDir, _ := os.Getwd()
+	configDir := filepath.Dir(p.config.GetConfigFile())
+	if !filepath.IsAbs(configDir) {
+		configDir = filepath.Join(currentDir, configDir)
+	}
 	env := make(map[string]string, len(os.Environ()))
 	for _, envValue := range os.Environ() {
 		keyValuePair := strings.SplitN(envValue, "=", 2)
@@ -263,10 +267,15 @@ func (p *Profile) NewTemplateData() TemplateData {
 			Name: p.Name,
 		},
 		Now:        time.Now(),
-		ConfigDir:  filepath.Dir(p.config.GetConfigFile()),
-		CurrentDir: wd,
+		ConfigDir:  configDir,
+		CurrentDir: currentDir,
 		Env:        env,
 	}
+}
+
+// ResolveTemplates loads templates from each flag and replaces the values from data
+func (p *Profile) ResolveTemplates(data TemplateData) error {
+	return resolveProfileTemplate(data, p)
 }
 
 func addOtherFlags(flags map[string][]string, otherFlags map[string]interface{}) map[string][]string {

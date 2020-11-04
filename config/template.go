@@ -22,11 +22,6 @@ type ProfileTemplateData struct {
 	Name string
 }
 
-// ResolveProfileVariables loads templates from each flag and replaces the values from data
-func ResolveProfileVariables(data TemplateData, profile *Profile) error {
-	return resolveProfileTemplate(data, profile)
-}
-
 func resolveProfileTemplate(data TemplateData, item interface{}) error {
 	typeOf := reflect.TypeOf(item)
 	valueOf := reflect.ValueOf(item)

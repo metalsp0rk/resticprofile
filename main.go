@@ -291,7 +291,7 @@ func runProfile(
 	}
 
 	// fill in config variables
-	config.ResolveProfileVariables(profile.NewTemplateData(), profile)
+	profile.ResolveTemplates(profile.NewTemplateData())
 
 	// Send the quiet/verbose down to restic as well (override profile configuration)
 	if flags.quiet {

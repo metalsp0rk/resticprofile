@@ -106,7 +106,6 @@ func (c *Config) loadTemplate(input io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("cannot execute %w", err)
 	}
-	clog.Debug(buffer.String())
 	return c.load(buffer)
 }
 
@@ -132,7 +131,7 @@ func (c *Config) reloadTemplate(data TemplateData) error {
 	if err != nil {
 		return fmt.Errorf("cannot execute %w", err)
 	}
-	clog.Debugf("Resulting configuration:\n%s\n", buffer.String())
+	clog.Tracef("Resulting configuration for profile %s:\n%s\n", data.Profile.Name, buffer.String())
 	return c.load(buffer)
 }
 

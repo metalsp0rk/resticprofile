@@ -1149,12 +1149,20 @@ Sometimes it's easier to have a big configuration that you can reuse everywhere.
 You can use variables in the resticprofile configuration file like so:
 
 ```yaml
+# yaml configuration file is not well suited for nested templates as it requires the exact number of spaces
+# also if you redefine an existing block it replaces the previous definition
+{{ define "tags" }}
+        tag:
+        - "{{ .Profile.Name }}"
+        - dev
+{{ end }}
 ---
 generic:
     password-file: "{{ .ConfigDir }}/{{ .Profile.Name }}-key"
-    repository: /backup/{{ .Now.Weekday }}
+    repository: "/backup/{{ .Now.Weekday }}"
     lock: "$HOME/resticprofile-profile-{{ .Profile.Name }}.lock"
     initialize: true
+
     backup:
         check-before: true
         exclude:
@@ -1166,20 +1174,19 @@ generic:
         - "echo Hello {{ .Env.LOGNAME }}"
         - "echo current dir: {{ .CurrentDir }}"
         - "echo config dir: {{ .ConfigDir }}"
-        - "echo profile started at {{ .Now.Format \"02 Jan 06 15:04 MST\" }}"
-        tag:
-        - "{{ .Profile.Name }}"
-        - dev
+        - "echo profile started at {{ .Now.Format "02 Jan 06 15:04 MST" }}"
+        {{ template "tags" . }}
+
     retention:
         after-backup: true
         before-backup: false
         compact: false
         keep-within: 30d
         prune: true
+        {{ template "tags" . }}
+
     snapshots:
-        tag:
-        - "{{ .Profile.Name }}"
-        - dev
+        {{ template "tags" . }}
 
 src:
     inherit: generic
@@ -1191,6 +1198,100 @@ src:
 
 This is obviously not a real world example, but it shows all the possibilities you can do with variable expansion.
 
+Here's a more realistic configuration taken from one of my linux boxes:
+
+```ini
+#
+# This is an example of TOML configuration using nested templates
+#
+
+# nested template declarations
+{{ define "backup_root" }}
+    exclude = [ "{{ .Profile.Name }}-backup.log" ]
+    exclude-file = [
+        "{{ .ConfigDir }}/root-excludes",
+        "{{ .ConfigDir }}/excludes"
+    ]
+    exclude-caches = true
+    tag = [ "root" ]
+    source = [ "/" ]
+{{ end }}
+
+[global]
+priority = "low"
+ionice = true
+ionice-class = 2
+ionice-level = 6
+
+[base]
+status-file = "{{ .Env.HOME }}/status.json"
+
+    [base.snapshots]
+    host = true
+
+    [base.retention]
+    host = true
+    after-backup = true
+    keep-within = "30d"
+
+#########################################################
+
+[nas]
+inherit = "base"
+repository = "rest:http://{{ .Env.BACKUP_REST_USER }}:{{ .Env.BACKUP_REST_PASSWORD }}@nas:8000/root"
+password-file = "nas-key"
+
+# root
+
+[nas-root]
+inherit = "nas"
+
+    [nas-root.backup]
+    {{ template "backup_root" . }}
+    schedule = "01:47"
+    schedule-permission = "system"
+    schedule-log = "{{ .Profile.Name }}-backup.log"
+
+#########################################################
+
+[azure]
+inherit = "base"
+repository = "azure:restic:/"
+password-file = "azure-key"
+lock = "/tmp/resticprofile-azure.lock"
+
+    [azure.backup]
+    schedule-permission = "system"
+    schedule-log = "{{ .Profile.Name }}-backup.log"
+
+# root
+
+[azure-root]
+inherit = "azure"
+
+    [azure-root.backup]
+    {{ template "backup_root" . }}
+    schedule = "03:58"
+
+# mysql
+
+[azure-mysql]
+inherit = "azure"
+
+    [azure-mysql.backup]
+    tag = [ "mysql" ]
+    run-before = [
+        "rm -f /tmp/mysqldumpall.sql",
+        "mysqldump -u{{ .Env.MYSQL_BACKUP_USER }} -p{{ .Env.MYSQL_BACKUP_PASSWORD }} --all-databases > /tmp/mysqldumpall.sql"
+    ]
+    source = "/tmp/mysqldumpall.sql"
+    run-after = [
+        "rm -f /tmp/mysqldumpall.sql"
+    ]
+    schedule = "03:18"
+
+```
+
 ### Variables
 
 The list of available variables is:
@@ -1200,13 +1301,55 @@ The list of available variables is:
 - **.ConfigDir** (string)
 - **.Env.{NAME}** (string)
 
-### Limitations
+### Rules
 
-#### No nested template
+#### Variable expansion
 
-If you look at the documentation for Go templates you might be tempted to use [nested templates](https://golang.org/pkg/text/template/#hdr-Nested_template_definitions). It **cannot** work in the configuration file.
+This is the easy one, and possibly the only one to use. The syntax is quite simple:
 
-*The internal reason is that the code needs to know the name of your templates in advance and compile them one by one passing the variables to each of them.*
+```
+{{ .VariableName }}
+```
+
+For variables that are objects, you can call all public field or method on it.
+For example, for the variable `.Now` you can use:
+- .Now.Day
+- .Now.Format layout
+- .Now.Hour
+- .Now.Minute
+- .Now.Month
+- .Now.Second
+- .Now.UTC
+- .Now.Unix
+- .Now.Weekday
+- .Now.Year
+- .Now.YearDay
+
+#### Nested templates
+
+Please keep in mind that `yaml` files are sensitive to the number of spaces. Also if you declare a block already declared, it overrides the previous declaration (instead of merging them).
+
+For that matter, template nesting is probably more useful if you use the `toml` or `hcl` configuration format.
+
+Here's a simple example
+
+```
+{{ define "hello" }}
+hello = "world"
+{{ end }}
+```
+
+To use this template anywhere in your configuration, simply call it:
+
+```
+{{ template "hello" . }}
+```
+
+Note the **dot** after the name: it's used to pass the variables to the nested template. Without it, all your variables would display `<no value>`.
+
+#### Full documentation
+
+There are a lot more you can do with templates. If you're brave enough, [you can read the full documentation of the Go templates](https://golang.org/pkg/text/template/).
 
 ## Configuration file reference
 

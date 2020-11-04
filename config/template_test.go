@@ -215,3 +215,81 @@ repository = "/mnt/backup"
 
 	assert.Equal(t, "/mnt/backup", profile.Repository)
 }
+
+func TestNestedTemplate(t *testing.T) {
+	testData := []testTemplate{
+		{"toml", `
+{{ define "tags" }}
+tag = "{{ .Profile.Name }}"
+{{ end }}
+[profile]
+initialize = true
+
+[profile.backup]
+source = "/"
+{{ template "tags" . }}
+
+[profile.forget]
+keep-daily = 1
+{{ template "tags" . }}
+`},
+		{"json", `
+{{ define "tags" }}
+"tag": "{{ .Profile.Name }}"
+{{ end }}
+{
+  "profile": {
+    "backup": {
+		"source": "/",
+		{{ template "tags" . }}
+	},
+    "forget": {
+		"keep-daily": 1,
+		{{ template "tags" . }}
+	}
+  }
+}`},
+		{"yaml", `---
+{{ define "tags" }}
+    tag: {{ .Profile.Name }}
+{{ end }}
+profile:
+  backup:
+    source: "/"
+    {{ template "tags" . }}
+  forget:
+    keep-daily: 1
+    {{ template "tags" . }}
+`},
+		{"hcl", `
+{{ define "tags" }}
+    tag = "{{ .Profile.Name }}"
+{{ end }}
+"profile" = {
+	backup = {
+		source = "/"
+		{{ template "tags" . }}
+	}
+	forget = {
+		keep-daily = 1
+		{{ template "tags" . }}
+	}
+}
+`},
+	}
+
+	for _, testItem := range testData {
+		format := testItem.format
+		testConfig := testItem.config
+		t.Run(format, func(t *testing.T) {
+			profile, err := getResolvedProfile(format, testConfig, "profile")
+			require.NoError(t, err)
+
+			assert.NotNil(t, profile)
+			assert.NotNil(t, profile.Backup)
+			assert.Contains(t, profile.Backup.OtherFlags["tag"], "profile")
+			assert.NotNil(t, profile.Forget)
+			assert.Contains(t, profile.Forget["tag"], "profile")
+		})
+	}
+}

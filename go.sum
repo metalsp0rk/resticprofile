@@ -69,8 +69,6 @@ github.com/coreos/go-semver v0.3.0/go.mod h1:nnelYz7RCh+5ahJtPPxZlU+153eP4D4r3Ee
 github.com/coreos/go-systemd v0.0.0-20190321100706-95778dfbb74e/go.mod h1:F5haX7vjVVG0kc13fIWeqUViNPyEJxv/OmvnBo0Yme4=
 github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f/go.mod h1:E3G3o1h8I7cfcXa63jLwjI0eiQQMgzzUDFVpN/nH/eA=
 github.com/creack/pty v1.1.9/go.mod h1:oKZEueFk5CKHvIhNR5MUki03XCEU+Q6VDXinZuGJ33E=
-github.com/creativeprojects/clog v0.5.0 h1:8L6bIpQweANz/mo+GNVAp6a5nQTScx6r93gQcftZpRo=
-github.com/creativeprojects/clog v0.5.0/go.mod h1:JKXBQnvWR1NBQ52d7ddtUd7qHHxyGHuwtVx5ltgUM34=
 github.com/creativeprojects/clog v0.6.0 h1:xkXbgwOrZ6alPT8j4PneaLLZ0kKXeVi9PFjGcacl4Dg=
 github.com/creativeprojects/clog v0.6.0/go.mod h1:JKXBQnvWR1NBQ52d7ddtUd7qHHxyGHuwtVx5ltgUM34=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

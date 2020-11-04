@@ -22,6 +22,7 @@ With resticprofile:
 * **[new for v0.9.0]** You can generate cryptographically secure random keys to use as a restic key file
 * **[new for v0.9.0]** You can easily schedule backups, retentions and checks (works for *systemd*, *launchd* and *windows task scheduler*)
 * **[new for v0.9.1]** You can generate a simple status file to send to some monitoring software and make sure your backups are running fine 
+* **[new for v0.10.0]** You can use a template syntax in your configuration file
 
 The configuration file accepts various formats:
 * [TOML](https://github.com/toml-lang/toml) : configuration file with extension _.toml_ and _.conf_ to keep compatibility with versions before 0.6.0
@@ -32,7 +33,6 @@ The configuration file accepts various formats:
 For the rest of the documentation, I'll be mostly showing examples using the TOML file configuration format (because it was the only one supported before version 0.6.0) but you can pick your favourite: they all work with resticprofile.
 
 # Table of Contents
-
 * [resticprofile](#resticprofile)
 * [Table of Contents](#table-of-contents)
   * [Requirements](#requirements)
@@ -73,7 +73,12 @@ For the rest of the documentation, I'll be mostly showing examples using the TOM
       * [Examples of scheduling commands under macOS](#examples-of-scheduling-commands-under-macos)
     * [Changing schedule\-permission from user to system, or system to user](#changing-schedule-permission-from-user-to-system-or-system-to-user)
   * [Status file for easy monitoring](#status-file-for-easy-monitoring)
-  * [Variable expansion in configuration file](#variable-expansion-in-configuration-file)
+  * [Variable expansion in configuration file (for advanced users)](#variable-expansion-in-configuration-file-for-advanced-users)
+    * [Variables](#variables)
+    * [Rules](#rules)
+      * [Variable expansion](#variable-expansion)
+      * [Nested templates](#nested-templates)
+      * [Full documentation](#full-documentation)
   * [Configuration file reference](#configuration-file-reference)
   * [Appendix](#appendix)
   * [Using resticprofile and systemd](#using-resticprofile-and-systemd)
@@ -83,7 +88,6 @@ For the rest of the documentation, I'll be mostly showing examples using the TOM
     * [User agent](#user-agent)
       * [Special case of schedule\-permission=user with sudo](#special-case-of-schedule-permissionuser-with-sudo)
     * [Daemon](#daemon)
-
 
 ## Requirements
 
@@ -1143,7 +1147,7 @@ Here's an example of a generated file, where you can see that the last check fai
   }
 }
 ```
-## Variable expansion in configuration file
+## Variable expansion in configuration file (for advanced users)
 
 Sometimes it's easier to have a big configuration that you can reuse everywhere.
 You can use variables in the resticprofile configuration file like so:
@@ -1206,6 +1210,8 @@ Here's a more realistic configuration taken from one of my linux boxes:
 #
 
 # nested template declarations
+# this template declaration won't appear here in the configuration file
+# it will only appear when called by {{ template "backup_root" . }}
 {{ define "backup_root" }}
     exclude = [ "{{ .Profile.Name }}-backup.log" ]
     exclude-file = [
@@ -1247,6 +1253,7 @@ password-file = "nas-key"
 inherit = "nas"
 
     [nas-root.backup]
+    # get the content of "backup_root" defined at the top
     {{ template "backup_root" . }}
     schedule = "01:47"
     schedule-permission = "system"
@@ -1270,6 +1277,7 @@ lock = "/tmp/resticprofile-azure.lock"
 inherit = "azure"
 
     [azure-root.backup]
+    # get the content of "backup_root" defined at the top
     {{ template "backup_root" . }}
     schedule = "03:58"
 
@@ -1305,25 +1313,29 @@ The list of available variables is:
 
 #### Variable expansion
 
-This is the easy one, and possibly the only one to use. The syntax is quite simple:
+This is the easy one, and possibly the only one you might use. The syntax is quite simple:
 
 ```
 {{ .VariableName }}
 ```
 
+Environment variables are accessible using `.Env.` followed by the name of the environment variable.
+
+Example: `{{ .Env.HOME }}` will be replaced by your home directory (on unixes).
+
 For variables that are objects, you can call all public field or method on it.
 For example, for the variable `.Now` you can use:
-- .Now.Day
-- .Now.Format layout
-- .Now.Hour
-- .Now.Minute
-- .Now.Month
-- .Now.Second
-- .Now.UTC
-- .Now.Unix
-- .Now.Weekday
-- .Now.Year
-- .Now.YearDay
+- `.Now.Day`
+- `.Now.Format layout`
+- `.Now.Hour`
+- `.Now.Minute`
+- `.Now.Month`
+- `.Now.Second`
+- `.Now.UTC`
+- `.Now.Unix`
+- `.Now.Weekday`
+- `.Now.Year`
+- `.Now.YearDay`
 
 #### Nested templates
 
@@ -1339,17 +1351,19 @@ hello = "world"
 {{ end }}
 ```
 
-To use this template anywhere in your configuration, simply call it:
+To use the content of this template anywhere in your configuration, simply call it:
 
 ```
 {{ template "hello" . }}
 ```
 
-Note the **dot** after the name: it's used to pass the variables to the nested template. Without it, all your variables would display `<no value>`.
+Note the **dot** after the name: it's used to pass the variables to the nested template. Without it, all your variables (like `.Profile.Name`) would display `<no value>`.
 
 #### Full documentation
 
 There are a lot more you can do with templates. If you're brave enough, [you can read the full documentation of the Go templates](https://golang.org/pkg/text/template/).
+
+For a more end-user kind of documentation, you can also read [hugo documentation on templates](https://gohugo.io/templates/introduction/) which is using the same Go implementation, but don't talk much about the developer side of it.
 
 ## Configuration file reference
 

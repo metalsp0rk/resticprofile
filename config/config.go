@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -9,12 +10,15 @@ import (
 	"reflect"
 	"strings"
 	"text/template"
-	"time"
 
 	"github.com/creativeprojects/clog"
 	"github.com/creativeprojects/resticprofile/constants"
 	"github.com/mitchellh/mapstructure"
 	"github.com/spf13/viper"
+)
+
+const (
+	rootTemplate = "___root_template___"
 )
 
 // Config wraps up a viper configuration object
@@ -97,15 +101,16 @@ func (c *Config) loadTemplate(input io.Reader) error {
 	if err != nil {
 		return err
 	}
-	c.sourceTemplate, err = template.New("").Parse(inputString.String())
+	c.sourceTemplate, err = template.New(rootTemplate).Parse(inputString.String())
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot compile %w", err)
 	}
 	buffer := &bytes.Buffer{}
-	err = c.sourceTemplate.Execute(buffer, TemplateData{})
+	err = c.sourceTemplate.Execute(buffer, newTemplateData(c.configFile, "default"))
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot execute %w", err)
 	}
+	clog.Debug(buffer.String())
 	return c.load(buffer)
 }
 
@@ -122,12 +127,16 @@ func (c *Config) load(input io.Reader) error {
 	return nil
 }
 
-func (c *Config) reloadWithTemplateData(data TemplateData) error {
+func (c *Config) reloadTemplate(data TemplateData) error {
+	if c.sourceTemplate == nil {
+		return errors.New("no available template to execute, please load it first")
+	}
 	buffer := &bytes.Buffer{}
 	err := c.sourceTemplate.Execute(buffer, data)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot execute %w", err)
 	}
+	clog.Debugf("Resulting configuration:\n%s\n", buffer.String())
 	return c.load(buffer)
 }
 
@@ -274,31 +283,11 @@ func (c *Config) loadGroups() error {
 
 // GetProfileFromTemplate in configuration
 func (c *Config) GetProfileFromTemplate(profileKey string) (*Profile, error) {
-	currentDir, _ := os.Getwd()
-	configDir := filepath.Dir(c.GetConfigFile())
-	if !filepath.IsAbs(configDir) {
-		configDir = filepath.Join(currentDir, configDir)
-	}
-	env := make(map[string]string, len(os.Environ()))
-	for _, envValue := range os.Environ() {
-		keyValuePair := strings.SplitN(envValue, "=", 2)
-		if keyValuePair[0] == "" {
-			continue
+	if c.sourceTemplate != nil {
+		err := c.reloadTemplate(newTemplateData(c.configFile, profileKey))
+		if err != nil {
+			return nil, err
 		}
-		env[keyValuePair[0]] = keyValuePair[1]
-	}
-	data := TemplateData{
-		Profile: ProfileTemplateData{
-			Name: profileKey,
-		},
-		Now:        time.Now(),
-		ConfigDir:  configDir,
-		CurrentDir: currentDir,
-		Env:        env,
-	}
-	err := c.reloadWithTemplateData(data)
-	if err != nil {
-		return nil, err
 	}
 	return c.GetProfile(profileKey)
 }

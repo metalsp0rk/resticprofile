@@ -147,14 +147,14 @@ func main() {
 
 	c, err := config.LoadFile(configFile, flags.format)
 	if err != nil {
-		clog.Error("cannot load configuration file:", err)
+		clog.Errorf("cannot load configuration file: %v", err)
 		exitCode = 1
 		return
 	}
 
 	global, err := c.GetGlobalSection()
 	if err != nil {
-		clog.Error("cannot load global configuration:", err)
+		clog.Errorf("cannot load global configuration: %v", err)
 		exitCode = 1
 		return
 	}
@@ -289,9 +289,6 @@ func runProfile(
 	if profile == nil {
 		return fmt.Errorf("cannot load profile '%s'", profileName)
 	}
-
-	// fill in config variables
-	profile.ResolveTemplates(profile.NewTemplateData())
 
 	// Send the quiet/verbose down to restic as well (override profile configuration)
 	if flags.quiet {

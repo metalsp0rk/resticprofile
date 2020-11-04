@@ -240,21 +240,12 @@ func showProfile(c *config.Config, flags commandLineFlags, args []string) error 
 	config.ShowStruct(os.Stdout, global)
 
 	// Then show profile
-	profile, err := c.GetProfile(flags.name)
+	profile, err := c.GetProfileFromTemplate(flags.name)
 	if err != nil {
 		return fmt.Errorf("cannot show profile '%s': %w", flags.name, err)
 	}
 	if profile == nil {
 		return fmt.Errorf("profile '%s' not found", flags.name)
-	}
-	// resolve profile template
-	templData := profile.NewTemplateData()
-	err = profile.ResolveTemplates(templData)
-	if err != nil {
-		return fmt.Errorf("template error in profile '%s': %w", flags.name, err)
-	}
-	if templData.ConfigDir != "." {
-		profile.SetRootPath(templData.ConfigDir)
 	}
 	fmt.Printf("\n%s:\n", flags.name)
 	config.ShowStruct(os.Stdout, profile)

@@ -1191,12 +1191,22 @@ src:
 
 This is obviously not a real world example, but it shows all the possibilities you can do with variable expansion.
 
+### Variables
+
 The list of available variables is:
-- .Profile.Name
-- .Now
-- .CurrentDir
-- .ConfigDir
-- .Env.{NAME}
+- **.Profile.Name** (string)
+- **.Now** ([time.Time](https://golang.org/pkg/time/) object)
+- **.CurrentDir** (string)
+- **.ConfigDir** (string)
+- **.Env.{NAME}** (string)
+
+### Limitations
+
+#### No nested template
+
+If you look at the documentation for Go templates you might be tempted to use [nested templates](https://golang.org/pkg/text/template/#hdr-Nested_template_definitions). It **cannot** work in the configuration file.
+
+*The internal reason is that the code needs to know the name of your templates in advance and compile them one by one passing the variables to each of them.*
 
 ## Configuration file reference
 

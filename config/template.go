@@ -22,8 +22,8 @@ type ProfileTemplateData struct {
 	Name string
 }
 
-// ResolveProfileTemplate loads templates from each flag and replaces the values from data
-func ResolveProfileTemplate(data TemplateData, profile *Profile) error {
+// ResolveProfileVariables loads templates from each flag and replaces the values from data
+func ResolveProfileVariables(data TemplateData, profile *Profile) error {
 	return resolveProfileTemplate(data, profile)
 }
 

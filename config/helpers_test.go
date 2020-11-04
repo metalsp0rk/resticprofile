@@ -34,7 +34,7 @@ func getResolvedProfile(configFormat, configString, profileKey string) (*Profile
 		ConfigDir:  "ConfigDir",
 		CurrentDir: "CurrentDir",
 	}
-	err = ResolveProfileTemplate(data, profile)
+	err = ResolveProfileVariables(data, profile)
 	if err != nil {
 		return nil, err
 	}

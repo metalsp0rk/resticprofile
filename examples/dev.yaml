@@ -110,8 +110,8 @@ src:
         run-after: echo All Done!
         run-before:
         - "echo Hello {{ .Env.LOGNAME }}"
-        - "echo current dir {{ .CurrentDir }}"
-        - "echo config dir {{ .ConfigDir }}"
+        - "echo current dir: {{ .CurrentDir }}"
+        - "echo config dir: {{ .ConfigDir }}"
         - "echo profile started at {{ .Now }}"
         source:
         - "{{ .Env.HOME }}/go/src"

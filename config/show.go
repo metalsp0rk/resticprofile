@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"strings"
 	"text/tabwriter"
 )
 
@@ -127,6 +126,13 @@ func showKeyValue(tabWriter io.Writer, prefix, key string, valueOf reflect.Value
 			// special case of a true flag that shows no value
 			convert = append(convert, "true")
 		}
-		fmt.Fprintf(tabWriter, "%s%s:\t%s\n", prefix, key, strings.Join(convert, ", "))
+		if len(convert) > 0 {
+			fmt.Fprintf(tabWriter, "%s%s:\t%s\n", prefix, key, convert[0])
+		}
+		if len(convert) > 1 {
+			for i := 1; i < len(convert); i++ {
+				fmt.Fprintf(tabWriter, "%s\t%s\n", prefix, convert[i])
+			}
+		}
 	}
 }

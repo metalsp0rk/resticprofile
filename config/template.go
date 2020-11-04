@@ -71,33 +71,6 @@ func resolveProfileTemplate(data TemplateData, item interface{}) error {
 				}
 				continue
 			}
-			// if (valueOf.Field(fieldIndex).Kind() == reflect.Slice || valueOf.Field(fieldIndex).Kind() == reflect.Array) &&
-			// 	valueOf.Field(fieldIndex).Type().Elem().Kind() == reflect.String {
-			// 	for index := 0; index < valueOf.Field(fieldIndex).Len(); index++ {
-			// 		// key and value are the same reflect.Value in this case
-			// 		err := resolveValue(data, valueOf.Field(fieldIndex).Index(index))
-			// 		if err != nil {
-			// 			return fmt.Errorf("field %s[%d]: %w", typeOf.Field(fieldIndex).Name, index, err)
-			// 		}
-			// 	}
-			// }
-			// if valueOf.Field(fieldIndex).Kind() == reflect.Map {
-			// 	if valueOf.Field(fieldIndex).Len() == 0 {
-			// 		continue
-			// 	}
-			// 	iter := valueOf.Field(fieldIndex).MapRange()
-			// 	for iter.Next() {
-			// 		err := resolveMapValue(data, valueOf.Field(fieldIndex), iter.Key(), iter.Value())
-			// 		if err != nil {
-			// 			return fmt.Errorf("key \"%s\": %w", iter.Key(), err)
-			// 		}
-			// 	}
-			// 	continue
-			// }
-			// err := resolveValue(data, valueOf.Field(fieldIndex))
-			// if err != nil {
-			// 	return fmt.Errorf("field %s: %w", typeOf.Field(fieldIndex).Name, err)
-			// }
 			err := resolveOtherKind(data, valueOf.Field(fieldIndex))
 			if err != nil {
 				return fmt.Errorf("field %s: %w", typeOf.Field(fieldIndex).Name, err)
@@ -107,6 +80,7 @@ func resolveProfileTemplate(data TemplateData, item interface{}) error {
 	return nil
 }
 
+// resolveOtherKind resolves variable expansion for array, slice, map, interface or string
 func resolveOtherKind(data TemplateData, valueOfField reflect.Value) error {
 	if (valueOfField.Kind() == reflect.Slice || valueOfField.Kind() == reflect.Array) &&
 		valueOfField.Type().Elem().Kind() == reflect.String {
@@ -137,6 +111,8 @@ func resolveOtherKind(data TemplateData, valueOfField reflect.Value) error {
 	return nil
 }
 
+// resolveMapValue checks for variable expansion in a map (typically of type map[string]interface{})
+// and resolves them
 func resolveMapValue(data TemplateData, sourceMap, key, value reflect.Value) error {
 	currentValue := value
 	if currentValue.Kind() == reflect.Interface {
@@ -146,18 +122,7 @@ func resolveMapValue(data TemplateData, sourceMap, key, value reflect.Value) err
 
 	if (currentValue.Kind() == reflect.Slice || currentValue.Kind() == reflect.Array) &&
 		currentValue.Type().Elem().Kind() == reflect.Interface {
-		// this is getting hairy: you cannot change any value inside the slice referenced by a map
-		// so we need to create a temp reflect.Value of the slice
-		// temp := reflect.ValueOf(make([]interface{}, currentValue.Len()))
-		// reflect.Copy(temp, currentValue)
-		// for index := 0; index < temp.Len(); index++ {
-		// 	err := resolveValue(data, temp.Index(index))
-		// 	if err != nil {
-		// 		return fmt.Errorf("index %d: %w", index, err)
-		// 	}
-		// }
-		// and copy this new slice into the map
-		// sourceMap.SetMapIndex(key, temp)
+		// value of type []interface{}
 		for index := 0; index < currentValue.Len(); index++ {
 			err := resolveValue(data, currentValue.Index(index))
 			if err != nil {
@@ -167,7 +132,7 @@ func resolveMapValue(data TemplateData, sourceMap, key, value reflect.Value) err
 		return nil
 	}
 
-	resolve, newValue, err := resolveField(data, currentValue)
+	resolve, newValue, err := resolveString(data, currentValue)
 	if err != nil {
 		return err
 	}
@@ -177,20 +142,21 @@ func resolveMapValue(data TemplateData, sourceMap, key, value reflect.Value) err
 	return nil
 }
 
+// resolveValue takes a string value, or an interface to a string value, and replaces the template content if any
 func resolveValue(data TemplateData, value reflect.Value) error {
-	// our value shouldn't be of interface type - keep it in case we change our mind
 	currentValue := value
 	if currentValue.Kind() == reflect.Interface {
 		// take the actual value from inside the interface
 		currentValue = currentValue.Elem()
 	}
 
-	resolve, newValue, err := resolveField(data, currentValue)
+	resolve, newValue, err := resolveString(data, currentValue)
 	if err != nil {
 		return err
 	}
 	if resolve {
 		if !currentValue.CanSet() {
+			// then try the interface
 			if !value.CanSet() {
 				// it shouldn't happen but it's still better than panic :p
 				return fmt.Errorf("cannot set value of '%s', kind %v", currentValue.String(), currentValue.Kind())
@@ -199,12 +165,15 @@ func resolveValue(data TemplateData, value reflect.Value) error {
 			value.Set(reflect.ValueOf(newValue))
 			return nil
 		}
+		// can set the value directly
 		currentValue.SetString(newValue)
 	}
 	return nil
 }
 
-func resolveField(data TemplateData, valueOf reflect.Value) (bool, string, error) {
+// resolveString takes the string value and check if a template needs compiled and executed.
+// if the value has changed (by executing a template), it returns true and the new value
+func resolveString(data TemplateData, valueOf reflect.Value) (bool, string, error) {
 	if valueOf.Kind() != reflect.String {
 		return false, "", nil
 	}

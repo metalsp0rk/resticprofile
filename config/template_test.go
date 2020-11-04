@@ -2,7 +2,9 @@ package config
 
 import (
 	"strconv"
+	"strings"
 	"testing"
+	"text/template"
 	"time"
 
 	"github.com/creativeprojects/clog"
@@ -184,4 +186,32 @@ tag = ["test", "{{ .Profile.Name }}"]
 	require.NotEmpty(t, profile)
 
 	assert.Contains(t, profile.Snapshots["tag"], "profile1")
+}
+
+func TestInheritanceWithTemplates(t *testing.T) {
+	clog.SetTestLog(t)
+	defer clog.CloseTestLog()
+
+	testConfig := `
+{{ define "repo" -}}
+repository = "/mnt/backup"
+{{- end }}
+
+[profile]
+{{ template "repo" }}
+`
+
+	// try compiling the template manually first
+	temp, err := template.New("").Parse(testConfig)
+	require.NoError(t, err)
+	buffer := &strings.Builder{}
+	err = temp.Execute(buffer, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "\n\n\n[profile]\nrepository = \"/mnt/backup\"\n", buffer.String())
+
+	profile, err := getResolvedProfile("toml", testConfig, "profile")
+	require.NoError(t, err)
+	require.NotEmpty(t, profile)
+
+	assert.Equal(t, "/mnt/backup", profile.Repository)
 }

@@ -2,7 +2,6 @@ package config
 
 import (
 	"bytes"
-	"time"
 )
 
 // Helpers for tests
@@ -21,20 +20,12 @@ func getProfile(configFormat, configString, profileKey string) (*Profile, error)
 }
 
 func getResolvedProfile(configFormat, configString, profileKey string) (*Profile, error) {
-	profile, err := getProfile(configFormat, configString, profileKey)
+	c, err := Load(bytes.NewBufferString(configString), configFormat)
 	if err != nil {
 		return nil, err
 	}
 
-	data := TemplateData{
-		Profile: ProfileTemplateData{
-			Name: profile.Name,
-		},
-		Now:        time.Now(),
-		ConfigDir:  "ConfigDir",
-		CurrentDir: "CurrentDir",
-	}
-	err = profile.ResolveTemplates(data)
+	profile, err := c.GetProfileFromTemplate(profileKey)
 	if err != nil {
 		return nil, err
 	}

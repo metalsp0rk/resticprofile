@@ -1,12 +1,15 @@
 package config
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"text/template"
+	"time"
 
 	"github.com/creativeprojects/clog"
 	"github.com/creativeprojects/resticprofile/constants"
@@ -16,11 +19,12 @@ import (
 
 // Config wraps up a viper configuration object
 type Config struct {
-	keyDelim   string
-	format     string
-	configFile string
-	viper      *viper.Viper
-	groups     map[string][]string
+	keyDelim       string
+	format         string
+	configFile     string
+	viper          *viper.Viper
+	groups         map[string][]string
+	sourceTemplate *template.Template
 }
 
 // This is where things are getting hairy:
@@ -68,7 +72,8 @@ func LoadFile(configFile, format string) (*Config, error) {
 	}
 	c := newConfig(format)
 	c.configFile = configFile
-	err = c.load(file)
+	// err = c.load(file)
+	err = c.loadTemplate(file)
 	if err != nil {
 		return c, err
 	}
@@ -78,11 +83,30 @@ func LoadFile(configFile, format string) (*Config, error) {
 // Load configuration from reader
 func Load(input io.Reader, format string) (*Config, error) {
 	c := newConfig(format)
-	err := c.load(input)
+	// err := c.load(input)
+	err := c.loadTemplate(input)
 	if err != nil {
 		return c, err
 	}
 	return c, nil
+}
+
+func (c *Config) loadTemplate(input io.Reader) error {
+	inputString := &strings.Builder{}
+	_, err := io.Copy(inputString, input)
+	if err != nil {
+		return err
+	}
+	c.sourceTemplate, err = template.New("").Parse(inputString.String())
+	if err != nil {
+		return err
+	}
+	buffer := &bytes.Buffer{}
+	err = c.sourceTemplate.Execute(buffer, TemplateData{})
+	if err != nil {
+		return err
+	}
+	return c.load(buffer)
 }
 
 func (c *Config) load(input io.Reader) error {
@@ -96,6 +120,15 @@ func (c *Config) load(input io.Reader) error {
 		return fmt.Errorf("cannot parse %s configuration: %w", c.format, err)
 	}
 	return nil
+}
+
+func (c *Config) reloadWithTemplateData(data TemplateData) error {
+	buffer := &bytes.Buffer{}
+	err := c.sourceTemplate.Execute(buffer, data)
+	if err != nil {
+		return err
+	}
+	return c.load(buffer)
 }
 
 // IsSet checks if the key contains a value
@@ -237,6 +270,37 @@ func (c *Config) loadGroups() error {
 		c.groups = groups
 	}
 	return nil
+}
+
+// GetProfileFromTemplate in configuration
+func (c *Config) GetProfileFromTemplate(profileKey string) (*Profile, error) {
+	currentDir, _ := os.Getwd()
+	configDir := filepath.Dir(c.GetConfigFile())
+	if !filepath.IsAbs(configDir) {
+		configDir = filepath.Join(currentDir, configDir)
+	}
+	env := make(map[string]string, len(os.Environ()))
+	for _, envValue := range os.Environ() {
+		keyValuePair := strings.SplitN(envValue, "=", 2)
+		if keyValuePair[0] == "" {
+			continue
+		}
+		env[keyValuePair[0]] = keyValuePair[1]
+	}
+	data := TemplateData{
+		Profile: ProfileTemplateData{
+			Name: profileKey,
+		},
+		Now:        time.Now(),
+		ConfigDir:  configDir,
+		CurrentDir: currentDir,
+		Env:        env,
+	}
+	err := c.reloadWithTemplateData(data)
+	if err != nil {
+		return nil, err
+	}
+	return c.GetProfile(profileKey)
 }
 
 // GetProfile from configuration

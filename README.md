@@ -1202,7 +1202,7 @@ src:
 
 This is obviously not a real world example, but it shows all the possibilities you can do with variable expansion.
 
-To check the generated configuration, you can use the restiprofile `show` command:
+To check the generated configuration, you can use the resticprofile `show` command:
 
 ```
 % resticprofile -c examples/template.yaml -n src show

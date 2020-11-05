@@ -38,7 +38,7 @@ ifeq ($(UNAME),Darwin)
 	TMP_MOUNT=${TMP_MOUNT_DARWIN}
 endif
 
-.PHONY: all test test-ci build install build-mac build-linux build-windows build-all coverage clean test-docker build-docker ramdisk passphrase rest-server nightly toc staticcheck release-snapshot
+.PHONY: all test test-ci build install build-mac build-linux build-windows build-all coverage clean test-docker build-docker ramdisk passphrase rest-server nightly toc staticcheck release-snapshot generate-install
 
 all: test build
 
@@ -130,3 +130,6 @@ staticcheck:
 	go get -u honnef.co/go/tools/cmd/staticcheck
 	go mod tidy
 	go run honnef.co/go/tools/cmd/staticcheck ./...
+
+generate-install:
+	godownloader .goreleaser.yml -r creativeprojects/resticprofile -o install.sh

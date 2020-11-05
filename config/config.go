@@ -61,10 +61,7 @@ func newConfig(format string) *Config {
 func LoadFile(configFile, format string) (*Config, error) {
 	if format == "" {
 		// use file extension as format
-		format = filepath.Ext(configFile)
-		if strings.HasPrefix(format, ".") {
-			format = format[1:]
-		}
+		format = strings.TrimPrefix(filepath.Ext(configFile), ".")
 	}
 	file, err := os.Open(configFile)
 	if err != nil {

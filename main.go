@@ -223,7 +223,7 @@ func main() {
 		if err != nil {
 			clog.Errorf("cannot load group '%s': %v", flags.name, err)
 		}
-		if group != nil && len(group) > 0 {
+		if len(group) > 0 {
 			for i, profileName := range group {
 				clog.Debugf("[%d/%d] starting profile '%s' from group '%s'", i+1, len(group), profileName, flags.name)
 				err = runProfile(c, global, flags, profileName, resticBinary, resticArguments, resticCommand)
@@ -318,7 +318,7 @@ func runProfile(
 
 	// Catch CTR-C keypress
 	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, os.Kill, syscall.SIGTERM, syscall.SIGABRT)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGABRT)
 
 	wrapper := newResticWrapper(
 		resticBinary,
@@ -360,7 +360,7 @@ uh-oh! resticprofile crashed miserably :-(
 Can you please open an issue on github including these details:
 ===============================================================
 `
-		fmt.Fprintf(os.Stderr, message)
+		fmt.Fprint(os.Stderr, message)
 		w := tabwriter.NewWriter(os.Stderr, 0, 0, 3, ' ', 0)
 		_, _ = fmt.Fprintf(w, "\t%s:\t%s\n", "os", runtime.GOOS)
 		_, _ = fmt.Fprintf(w, "\t%s:\t%s\n", "arch", runtime.GOARCH)

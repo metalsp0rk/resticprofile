@@ -85,7 +85,6 @@ func showSubStruct(outputWriter io.Writer, orig interface{}, prefix string) erro
 	tabWriter.Flush()
 	fmt.Fprintln(buffer, "")
 	buffer.Flush()
-	prefix = removeIndentation(prefix)
 
 	return nil
 }
@@ -94,17 +93,12 @@ func addIndentation(indent string) string {
 	return indent + templateIndent
 }
 
-func removeIndentation(indent string) string {
-	return indent[:len(indent)-len(templateIndent)]
-}
-
 func showNewMap(outputWriter io.Writer, prefix string, valueOf reflect.Value) {
 	subWriter := tabwriter.NewWriter(outputWriter, 0, 2, 2, ' ', 0)
 	prefix = addIndentation(prefix)
 	showMap(subWriter, prefix, valueOf)
 	subWriter.Flush()
 	fmt.Fprintln(outputWriter, "")
-	prefix = removeIndentation(prefix)
 }
 
 func showMap(tabWriter io.Writer, prefix string, valueOf reflect.Value) {

@@ -1147,19 +1147,45 @@ Here's an example of a generated file, where you can see that the last check fai
   }
 }
 ```
-## Variable expansion in configuration file (for advanced users)
+## Variable expansion in configuration file
 
-Sometimes it's easier to have a big configuration that you can reuse everywhere.
-You can use variables in the resticprofile configuration file like so:
+You might want to reuse the same configuration (or bits of it) on different environments. One way of doing it is to create a generic configuration where specific bits will be replaced by a variable.
+
+The syntax for variable expansion is quite simple:
+
+```
+{{ .VariableName }}
+```
+
+The list of available variables is:
+- **.Profile.Name** (string)
+- **.Now** ([time.Time](https://golang.org/pkg/time/) object)
+- **.CurrentDir** (string)
+- **.ConfigDir** (string)
+- **.Env.{NAME}** (string)
+
+Environment variables are accessible using `.Env.` followed by the name of the environment variable.
+
+Example: `{{ .Env.HOME }}` will be replaced by your home directory (on unixes). The equivalent on Windows would be `{{ .Env.USERPROFILE }}`.
+
+For variables that are objects, you can call all public field or method on it.
+For example, for the variable `.Now` you can use:
+- `.Now.Day`
+- `.Now.Format layout`
+- `.Now.Hour`
+- `.Now.Minute`
+- `.Now.Month`
+- `.Now.Second`
+- `.Now.UTC`
+- `.Now.Unix`
+- `.Now.Weekday`
+- `.Now.Year`
+- `.Now.YearDay`
+
+
+You can use a combination of inheritance and variables in the resticprofile configuration file like so:
 
 ```yaml
-# yaml configuration file is not well suited for nested templates as it requires the exact number of spaces
-# also if you redefine an existing block it replaces the previous definition
-{{ define "tags" }}
-        tag:
-        - "{{ .Profile.Name }}"
-        - dev
-{{ end }}
 ---
 generic:
     password-file: "{{ .ConfigDir }}/{{ .Profile.Name }}-key"
@@ -1179,7 +1205,9 @@ generic:
         - "echo current dir: {{ .CurrentDir }}"
         - "echo config dir: {{ .ConfigDir }}"
         - "echo profile started at {{ .Now.Format "02 Jan 06 15:04 MST" }}"
-        {{ template "tags" . }}
+        tag:
+        - "{{ .Profile.Name }}"
+        - dev
 
     retention:
         after-backup: true
@@ -1187,10 +1215,14 @@ generic:
         compact: false
         keep-within: 30d
         prune: true
-        {{ template "tags" . }}
+        tag:
+        - "{{ .Profile.Name }}"
+        - dev
 
     snapshots:
-        {{ template "tags" . }}
+        tag:
+        - "{{ .Profile.Name }}"
+        - dev
 
 src:
     inherit: generic
@@ -1200,7 +1232,7 @@ src:
 
 ```
 
-This is obviously not a real world example, but it shows all the possibilities you can do with variable expansion.
+This is obviously not a real world example, but it shows many of the possibilities you can do with variable expansion.
 
 To check the generated configuration, you can use the resticprofile `show` command:
 
@@ -1243,7 +1275,33 @@ src:
               dev
 ```
 
-Here's a more realistic configuration taken from one of my linux boxes:
+As you can see, the `src` profile inherited from the `generic` profile. The tags `{{ .Profile.Name }}` got replaced by the name of the current profile `src`. Now you can reuse the same generic configuration in another profile.
+
+## Configuration templates
+
+Templates are a great way to compose configuration profiles.
+
+Please keep in mind that `yaml` files are sensitive to the number of spaces. Also if you declare a block already declared, it overrides the previous declaration (instead of merging them).
+
+For that matter, configuration template is probably more useful if you use the `toml` or `hcl` configuration format.
+
+Here's a simple example
+
+```
+{{ define "hello" }}
+hello = "world"
+{{ end }}
+```
+
+To use the content of this template anywhere in your configuration, simply call it:
+
+```
+{{ template "hello" . }}
+```
+
+Note the **dot** after the name: it's used to pass the variables to the template. Without it, all your variables (like `.Profile.Name`) would display `<no value>`.
+
+Here's a working example:
 
 ```ini
 #
@@ -1341,68 +1399,9 @@ inherit = "azure"
 
 ```
 
-### Variables
+## Documentation on template, variable expansion and other configuration scripting
 
-The list of available variables is:
-- **.Profile.Name** (string)
-- **.Now** ([time.Time](https://golang.org/pkg/time/) object)
-- **.CurrentDir** (string)
-- **.ConfigDir** (string)
-- **.Env.{NAME}** (string)
-
-### Rules
-
-#### Variable expansion
-
-This is the easy one, and possibly the only one you might use. The syntax is quite simple:
-
-```
-{{ .VariableName }}
-```
-
-Environment variables are accessible using `.Env.` followed by the name of the environment variable.
-
-Example: `{{ .Env.HOME }}` will be replaced by your home directory (on unixes).
-
-For variables that are objects, you can call all public field or method on it.
-For example, for the variable `.Now` you can use:
-- `.Now.Day`
-- `.Now.Format layout`
-- `.Now.Hour`
-- `.Now.Minute`
-- `.Now.Month`
-- `.Now.Second`
-- `.Now.UTC`
-- `.Now.Unix`
-- `.Now.Weekday`
-- `.Now.Year`
-- `.Now.YearDay`
-
-#### Nested templates
-
-Please keep in mind that `yaml` files are sensitive to the number of spaces. Also if you declare a block already declared, it overrides the previous declaration (instead of merging them).
-
-For that matter, template nesting is probably more useful if you use the `toml` or `hcl` configuration format.
-
-Here's a simple example
-
-```
-{{ define "hello" }}
-hello = "world"
-{{ end }}
-```
-
-To use the content of this template anywhere in your configuration, simply call it:
-
-```
-{{ template "hello" . }}
-```
-
-Note the **dot** after the name: it's used to pass the variables to the nested template. Without it, all your variables (like `.Profile.Name`) would display `<no value>`.
-
-#### Full documentation
-
-There are a lot more you can do with templates. If you're brave enough, [you can read the full documentation of the Go templates](https://golang.org/pkg/text/template/).
+There are a lot more you can do with configuration templates. If you're brave enough, [you can read the full documentation of the Go templates](https://golang.org/pkg/text/template/).
 
 For a more end-user kind of documentation, you can also read [hugo documentation on templates](https://gohugo.io/templates/introduction/) which is using the same Go implementation, but don't talk much about the developer side of it.
 

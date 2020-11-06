@@ -1148,13 +1148,15 @@ Here's an example of a generated file, where you can see that the last check fai
 
 You might want to reuse the same configuration (or bits of it) on different environments. One way of doing it is to create a generic configuration where specific bits will be replaced by a variable.
 
-The syntax for variable expansion is quite simple:
+### Pre-defined variables
 
+The syntax for using a pre-defined variable is:
 ```
 {{ .VariableName }}
 ```
 
-The list of available variables is:
+
+The list of pre-defined variables is:
 - **.Profile.Name** (string)
 - **.Now** ([time.Time](https://golang.org/pkg/time/) object)
 - **.CurrentDir** (string)
@@ -1179,6 +1181,20 @@ For example, for the variable `.Now` you can use:
 - `.Now.Year`
 - `.Now.YearDay`
 
+
+### Hand-made variables
+
+But you can also define variables yourself. Hand-made variables starts with a `$` ([PHP](https://en.wikipedia.org/wiki/PHP) anyone?) and get declared and assigned with the `:=` operator ([Pascal](https://en.wikipedia.org/wiki/Pascal_(programming_language)) anyone?). Here's an example:
+
+```yaml
+# declare and assign a value to the variable
+{{ $name := "something" }}
+
+# put the content of the variable here
+tag: "{{ $name }}"
+```
+
+### Examples
 
 You can use a combination of inheritance and variables in the resticprofile configuration file like so:
 
@@ -1273,6 +1289,34 @@ src:
 ```
 
 As you can see, the `src` profile inherited from the `generic` profile. The tags `{{ .Profile.Name }}` got replaced by the name of the current profile `src`. Now you can reuse the same generic configuration in another profile.
+
+Here's another example of an HCL configuration on Linux where I use a variable `$mountpoint` set to a USB drive mount point:
+
+```hcl
+global {
+    priority = "low"
+    ionice = true
+    ionice-class = 2
+    ionice-level = 6
+}
+
+{{ $mountpoint := "/mnt/external" }}
+
+default {
+    repository = "local:{{ $mountpoint }}/backup"
+    password-file = "key"
+    run-before = "mount {{ $mountpoint }}"
+    run-after = "umount {{ $mountpoint }}"
+    run-after-fail = "umount {{ $mountpoint }}"
+
+    backup {
+        exclude-caches = true
+        source = [ "/etc", "/var/lib/libvirt" ]
+        check-after = true
+    }
+}
+
+```
 
 ## Configuration templates
 
@@ -1396,11 +1440,17 @@ inherit = "azure"
 
 ```
 
+## Debugging your template and variable expansion
+
+If for some reason you don't understand why resticprofile is not loading your configuration file, you can display the generated configuration after executing the template (and replacing the variables and everything) using the --trace flag:
+
+
 ## Documentation on template, variable expansion and other configuration scripting
 
 There are a lot more you can do with configuration templates. If you're brave enough, [you can read the full documentation of the Go templates](https://golang.org/pkg/text/template/).
 
 For a more end-user kind of documentation, you can also read [hugo documentation on templates](https://gohugo.io/templates/introduction/) which is using the same Go implementation, but don't talk much about the developer side of it.
+Please note there are some functions only made available by hugo though.
 
 ## Configuration file reference
 

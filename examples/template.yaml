@@ -1,9 +1,9 @@
 # yaml configuration file is not well suited for nested templates as it requires the exact number of spaces
 # also if you redefine an existing block it replaces the previous definition
 {{ define "tags" }}
-        tag:
-        - "{{ .Profile.Name }}"
-        - dev
+            tag:
+            - "{{ .Profile.Name }}"
+            - dev
 {{ end }}
 ---
 generic:

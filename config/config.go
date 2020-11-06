@@ -103,6 +103,7 @@ func (c *Config) loadTemplate(input io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("cannot execute %w", err)
 	}
+	traceConfig("default", buffer.String())
 	return c.load(buffer)
 }
 
@@ -128,7 +129,7 @@ func (c *Config) reloadTemplate(data TemplateData) error {
 	if err != nil {
 		return fmt.Errorf("cannot execute %w", err)
 	}
-	clog.Tracef("Resulting configuration for profile %s:\n%s\n", data.Profile.Name, buffer.String())
+	traceConfig(data.Profile.Name, buffer.String())
 	return c.load(buffer)
 }
 
@@ -354,4 +355,13 @@ func sliceOfMapsToMapHookFunc() mapstructure.DecodeHookFunc {
 		// clog.Debugf("default from %+v to %+v", from, to)
 		return data, nil
 	}
+}
+
+func traceConfig(profileName, config string) {
+	lines := strings.Split(config, "\n")
+	output := ""
+	for i := 0; i < len(lines); i++ {
+		output += fmt.Sprintf("%3d: %s\n", i+1, lines[i])
+	}
+	clog.Tracef("Resulting configuration for profile '%s':\n====================\n%s\n====================\n", profileName, output)
 }

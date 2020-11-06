@@ -363,5 +363,5 @@ func traceConfig(profileName, config string) {
 	for i := 0; i < len(lines); i++ {
 		output += fmt.Sprintf("%3d: %s\n", i+1, lines[i])
 	}
-	clog.Tracef("Resulting configuration for profile '%s':\n====================\n%s\n====================\n", profileName, output)
+	clog.Tracef("Resulting configuration for profile '%s':\n====================\n%s====================\n", profileName, output)
 }

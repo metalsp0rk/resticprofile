@@ -5,6 +5,14 @@ lock = "$HOME/resticprofile-profile-{{ .Profile.Name }}.lock"
 initialize = true
 {{ end }}
 
+{{ define "retention" }}
+    after-backup = true
+    before-backup = false
+    compact = false
+    keep-within = "30d"
+    prune = true
+{{ end }}
+
 [src]
 {{ template "generic" . }}
 
@@ -24,14 +32,13 @@ initialize = true
     tag = ["{{ .Profile.Name }}", "dev"]
 
     [src.retention]
-    after-backup = true
-    before-backup = false
-    compact = false
-    keep-within = "30d"
-    prune = true
+    {{ template "retention" . }}
 
     [src.snapshots]
     tag = ["{{ .Profile.Name }}", "dev"]
 
 [other]
 {{ template "generic" . }}
+
+    [other.retention]
+    {{ template "retention" . }}

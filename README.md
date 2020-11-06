@@ -74,7 +74,12 @@ For the rest of the documentation, I'll be mostly showing examples using the TOM
     * [Changing schedule\-permission from user to system, or system to user](#changing-schedule-permission-from-user-to-system-or-system-to-user)
   * [Status file for easy monitoring](#status-file-for-easy-monitoring)
   * [Variable expansion in configuration file](#variable-expansion-in-configuration-file)
+    * [Pre\-defined variables](#pre-defined-variables)
+    * [Hand\-made variables](#hand-made-variables)
+    * [Examples](#examples)
   * [Configuration templates](#configuration-templates)
+  * [Debugging your template and variable expansion](#debugging-your-template-and-variable-expansion)
+  * [Limitations of using templates](#limitations-of-using-templates)
   * [Documentation on template, variable expansion and other configuration scripting](#documentation-on-template-variable-expansion-and-other-configuration-scripting)
   * [Configuration file reference](#configuration-file-reference)
   * [Appendix](#appendix)
@@ -85,7 +90,7 @@ For the rest of the documentation, I'll be mostly showing examples using the TOM
     * [User agent](#user-agent)
       * [Special case of schedule\-permission=user with sudo](#special-case-of-schedule-permissionuser-with-sudo)
     * [Daemon](#daemon)
-
+    
 ## Requirements
 
 Since version 0.6.0, resticprofile no longer needs python installed on your machine. It is distributed as an executable (same as restic).
@@ -1444,6 +1449,154 @@ inherit = "azure"
 
 If for some reason you don't understand why resticprofile is not loading your configuration file, you can display the generated configuration after executing the template (and replacing the variables and everything) using the --trace flag:
 
+## Limitations of using templates
+
+There's something to be aware of when dealing with templates: at the time the template is compiled, it has no knowledge of what the end configuration should look like: it has no knowledge of profiles for example. Here is a **non-working** example of what I mean:
+
+```ini
+{{ define "retention" }}
+    [{{ .Profile.Name }}.retention]
+    after-backup = true
+    before-backup = false
+    compact = false
+    keep-within = "30d"
+    prune = true
+{{ end }}
+
+[src]
+password-file = "{{ .ConfigDir }}/{{ .Profile.Name }}-key"
+repository = "/backup/{{ .Now.Weekday }}"
+lock = "$HOME/resticprofile-profile-{{ .Profile.Name }}.lock"
+initialize = true
+
+    [src.backup]
+    source = "{{ .Env.HOME }}/go/src"
+    check-before = true
+    exclude = ["/**/.git"]
+    exclude-caches = true
+    tag = ["{{ .Profile.Name }}", "dev"]
+
+    {{ template "retention" . }}
+
+    [src.snapshots]
+    tag = ["{{ .Profile.Name }}", "dev"]
+
+[other]
+password-file = "{{ .ConfigDir }}/{{ .Profile.Name }}-key"
+repository = "/backup/{{ .Now.Weekday }}"
+lock = "$HOME/resticprofile-profile-{{ .Profile.Name }}.lock"
+initialize = true
+
+    {{ template "retention" . }}
+
+```
+
+Here we define a template `retention` that we use twice.
+When you ask for a configuration of a profile, either `src` or `other` the template will change all occurrences of `{ .Profile.Name }` to the name of the profile, no matter where it is inside the file.
+
+```
+% resticprofile -c examples/parse-error.toml -n src show
+2020/11/06 21:39:48 cannot load configuration file: cannot parse toml configuration: While parsing config: (35, 6): duplicated tables
+exit status 1
+```
+
+Run the command again, this time asking a display of the compiled version of the configuration:
+
+```
+% go run . -c examples/parse-error.toml -n src --trace show
+2020/11/06 21:48:20 resticprofile 0.10.0-dev compiled with go1.15.3
+2020/11/06 21:48:20 Resulting configuration for profile 'default':
+====================
+  1:
+  2:
+  3: [src]
+  4: password-file = "/Users/CP/go/src/resticprofile/examples/default-key"
+  5: repository = "/backup/Friday"
+  6: lock = "$HOME/resticprofile-profile-default.lock"
+  7: initialize = true
+  8:
+  9:     [src.backup]
+ 10:     source = "/Users/CP/go/src"
+ 11:     check-before = true
+ 12:     exclude = ["/**/.git"]
+ 13:     exclude-caches = true
+ 14:     tag = ["default", "dev"]
+ 15:
+ 16:
+ 17:     [default.retention]
+ 18:     after-backup = true
+ 19:     before-backup = false
+ 20:     compact = false
+ 21:     keep-within = "30d"
+ 22:     prune = true
+ 23:
+ 24:
+ 25:     [src.snapshots]
+ 26:     tag = ["default", "dev"]
+ 27:
+ 28: [other]
+ 29: password-file = "/Users/CP/go/src/resticprofile/examples/default-key"
+ 30: repository = "/backup/Friday"
+ 31: lock = "$HOME/resticprofile-profile-default.lock"
+ 32: initialize = true
+ 33:
+ 34:
+ 35:     [default.retention]
+ 36:     after-backup = true
+ 37:     before-backup = false
+ 38:     compact = false
+ 39:     keep-within = "30d"
+ 40:     prune = true
+ 41:
+ 42:
+====================
+2020/11/06 21:48:20 cannot load configuration file: cannot parse toml configuration: While parsing config: (35, 6): duplicated tables
+exit status 1
+ ```
+
+ As you can see in lines 17 and 35, there are 2 sections of the same name. They could be both called `[src.retention]`, but actually the reason why they're both called `[default.retention]` is that resticprofile is doing a first pass to load the `[global]` section using a profile name of `default`.
+
+ The fix for this configuration is very simple though, just remove the section name from the template:
+
+```ini
+{{ define "retention" }}
+    after-backup = true
+    before-backup = false
+    compact = false
+    keep-within = "30d"
+    prune = true
+{{ end }}
+
+[src]
+password-file = "{{ .ConfigDir }}/{{ .Profile.Name }}-key"
+repository = "/backup/{{ .Now.Weekday }}"
+lock = "$HOME/resticprofile-profile-{{ .Profile.Name }}.lock"
+initialize = true
+
+    [src.backup]
+    source = "{{ .Env.HOME }}/go/src"
+    check-before = true
+    exclude = ["/**/.git"]
+    exclude-caches = true
+    tag = ["{{ .Profile.Name }}", "dev"]
+
+    [src.retention]
+    {{ template "retention" . }}
+
+    [src.snapshots]
+    tag = ["{{ .Profile.Name }}", "dev"]
+
+[other]
+password-file = "{{ .ConfigDir }}/{{ .Profile.Name }}-key"
+repository = "/backup/{{ .Now.Weekday }}"
+lock = "$HOME/resticprofile-profile-{{ .Profile.Name }}.lock"
+initialize = true
+
+    [other.retention]
+    {{ template "retention" . }}
+```
+
+And now you no longer end up with duplicated sections.
 
 ## Documentation on template, variable expansion and other configuration scripting
 

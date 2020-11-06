@@ -73,12 +73,10 @@ func TestPanicCommand(t *testing.T) {
 }
 
 func TestRandomKeyOfInvalidSize(t *testing.T) {
-	// doesn't look like much, but it's testing the random generator is not throwing an error
 	assert.Error(t, randomKey(nil, commandLineFlags{resticArgs: []string{"restic", "size"}}, nil))
 }
 
 func TestRandomKeyOfZeroSize(t *testing.T) {
-	// doesn't look like much, but it's testing the random generator is not throwing an error
 	assert.Error(t, randomKey(nil, commandLineFlags{resticArgs: []string{"restic", "0"}}, nil))
 }
 

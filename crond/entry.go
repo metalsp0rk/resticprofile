@@ -8,25 +8,25 @@ import (
 	"github.com/creativeprojects/resticprofile/calendar"
 )
 
+// Entry represents a new line in the crontab
 type Entry struct {
 	event   *calendar.Event
-	root    bool
 	command string
 }
 
-func NewEntry(event *calendar.Event, root bool, command string) *Entry {
-	return &Entry{
+// NewEntry creates a new crontab entry
+func NewEntry(event *calendar.Event, command string) Entry {
+	return Entry{
 		event:   event,
-		root:    root,
 		command: command,
 	}
 }
 
 // Generate writes a cron line in the StringWriter (end of line included)
-func (e *Entry) Generate(w io.StringWriter) error {
+func (e Entry) Generate(w io.StringWriter, forRootUser bool) error {
 	minute, hour, dayOfMonth, month, dayOfWeek := "*", "*", "*", "*", "*"
 	user := ""
-	if e.root {
+	if forRootUser {
 		user = "root\t"
 	}
 	if e.event.Minute.HasValue() {

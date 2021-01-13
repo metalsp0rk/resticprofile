@@ -1,3 +1,5 @@
+//+build !darwin,!windows
+
 package crond
 
 import (
@@ -10,25 +12,25 @@ import (
 
 // Entry represents a new line in the crontab
 type Entry struct {
-	event   *calendar.Event
-	command string
+	event       *calendar.Event
+	profileName string
+	commandName string
+	commandLine string
 }
 
 // NewEntry creates a new crontab entry
-func NewEntry(event *calendar.Event, command string) Entry {
+func NewEntry(event *calendar.Event, profileName, commandName, commandLine string) Entry {
 	return Entry{
-		event:   event,
-		command: command,
+		event:       event,
+		profileName: profileName,
+		commandName: commandName,
+		commandLine: commandLine,
 	}
 }
 
-// Generate writes a cron line in the StringWriter (end of line included)
-func (e Entry) Generate(w io.StringWriter, forRootUser bool) error {
+// String returns the crontab line representation of the entry (end of line included)
+func (e Entry) String() string {
 	minute, hour, dayOfMonth, month, dayOfWeek := "*", "*", "*", "*", "*"
-	user := ""
-	if forRootUser {
-		user = "root\t"
-	}
 	if e.event.Minute.HasValue() {
 		minute = formatRange(e.event.Minute.GetRanges(), twoDecimals)
 	}
@@ -45,7 +47,12 @@ func (e Entry) Generate(w io.StringWriter, forRootUser bool) error {
 		// don't make ranges for days of the week as it can fail with high sunday (7)
 		dayOfWeek = formatList(e.event.WeekDay.GetRangeValues(), formatWeekDay)
 	}
-	_, err := w.WriteString(fmt.Sprintf("%s %s %s %s %s\t%s%s\n", minute, hour, dayOfMonth, month, dayOfWeek, user, e.command))
+	return fmt.Sprintf("%s %s %s %s %s\t%s\n", minute, hour, dayOfMonth, month, dayOfWeek, e.commandLine)
+}
+
+// Generate writes a cron line in the StringWriter (end of line included)
+func (e Entry) Generate(w io.StringWriter) error {
+	_, err := w.WriteString(e.String())
 	return err
 }
 

@@ -1,3 +1,5 @@
+//+build !darwin,!windows
+
 package crond
 
 import (
@@ -10,19 +12,11 @@ import (
 )
 
 func TestEmptyUserEvent(t *testing.T) {
-	entry := NewEntry(calendar.NewEvent(), "command line")
+	entry := NewEntry(calendar.NewEvent(), "", "", "command line")
 	buffer := &strings.Builder{}
-	err := entry.Generate(buffer, false)
+	err := entry.Generate(buffer)
 	require.NoError(t, err)
 	assert.Equal(t, "* * * * *\tcommand line\n", buffer.String())
-}
-
-func TestEmptyRootEvent(t *testing.T) {
-	entry := NewEntry(calendar.NewEvent(), "command line")
-	buffer := &strings.Builder{}
-	err := entry.Generate(buffer, true)
-	require.NoError(t, err)
-	assert.Equal(t, "* * * * *\troot\tcommand line\n", buffer.String())
 }
 
 func TestEvents(t *testing.T) {
@@ -68,9 +62,9 @@ func TestEvents(t *testing.T) {
 			err := event.Parse(testRun.event)
 			require.NoError(t, err)
 
-			entry := NewEntry(event, "command line")
+			entry := NewEntry(event, "", "", "command line")
 			buffer := &strings.Builder{}
-			err = entry.Generate(buffer, false)
+			err = entry.Generate(buffer)
 			require.NoError(t, err)
 			assert.Equal(t, testRun.expected+"\tcommand line\n", buffer.String())
 		})

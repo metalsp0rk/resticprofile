@@ -53,6 +53,23 @@ func (j *Job) createJob(schedules []*calendar.Event) error {
 	return j.createSystemdJob(systemd.UserUnit)
 }
 
+// removeJob is disabling the systemd unit and deleting the timer and service files
+func (j *Job) removeJob() error {
+	permission := j.getSchedulePermission()
+	ok := j.checkPermission(permission)
+	if !ok {
+		return errors.New("user is not allowed to remove a system job: please restart resticprofile as root (with sudo)")
+	}
+	if Scheduler == constants.SchedulerCrond {
+		return j.removeCrondJob()
+	}
+	if os.Geteuid() == 0 {
+		// user has sudoed
+		return j.removeSystemdJob(systemd.SystemUnit)
+	}
+	return j.removeSystemdJob(systemd.UserUnit)
+}
+
 // displayStatus of a schedule
 func (j *Job) displayStatus(command string) error {
 	if Scheduler == constants.SchedulerCrond {

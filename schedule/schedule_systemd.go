@@ -3,7 +3,6 @@
 package schedule
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -76,20 +75,6 @@ func (j *Job) createSystemdJob(unitType systemd.UnitType) error {
 	_ = runSystemctlCommand(timerName, commandStatus, unitType)
 
 	return nil
-}
-
-// removeJob is disabling the systemd unit and deleting the timer and service files
-func (j *Job) removeJob() error {
-	permission := j.getSchedulePermission()
-	ok := j.checkPermission(permission)
-	if !ok {
-		return errors.New("user is not allowed to remove a system job: please restart resticprofile as root (with sudo)")
-	}
-	if os.Geteuid() == 0 {
-		// user has sudoed
-		return j.removeSystemdJob(systemd.SystemUnit)
-	}
-	return j.removeSystemdJob(systemd.UserUnit)
 }
 
 // removeSystemdJob is disabling the systemd unit and deleting the timer and service files

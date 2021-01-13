@@ -3,8 +3,10 @@
 package crond
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -27,17 +29,68 @@ func NewCrontab(name string, entries []Entry) *Crontab {
 	}
 }
 
-func (c *Crontab) Update(crontab string) {
-	//
-}
-
-func (c *Crontab) Generate(w io.StringWriter) error {
+func (c *Crontab) Update(source string, addEntries bool, w io.StringWriter) error {
 	var err error
+
+	before, crontab, after, sectionFound := extractOwnSection(source)
+
+	if sectionFound && len(c.entries) > 0 {
+		for _, entry := range c.entries {
+			crontab, _, err = deleteLine(crontab, entry)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	_, err = w.WriteString(before)
+	if err != nil {
+		return err
+	}
+
+	if !sectionFound {
+		// add a new line at the end of the file before adding our stuff
+		_, err = w.WriteString("\n")
+		if err != nil {
+			return err
+		}
+	}
 
 	_, err = w.WriteString(startMarker)
 	if err != nil {
 		return err
 	}
+
+	if sectionFound {
+		_, err = w.WriteString(crontab)
+		if err != nil {
+			return err
+		}
+	}
+
+	if addEntries {
+		err = c.Generate(w)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = w.WriteString(endMarker)
+	if err != nil {
+		return err
+	}
+
+	if sectionFound {
+		_, err = w.WriteString(after)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Crontab) Generate(w io.StringWriter) error {
+	var err error
 	if len(c.entries) > 0 {
 		for _, entry := range c.entries {
 			err = entry.Generate(w)
@@ -45,10 +98,6 @@ func (c *Crontab) Generate(w io.StringWriter) error {
 				return err
 			}
 		}
-	}
-	_, err = w.WriteString(endMarker)
-	if err != nil {
-		return err
 	}
 	return nil
 }
@@ -59,10 +108,55 @@ func (c *Crontab) LoadCurrent() (string, error) {
 	cmd.Stdout = buffer
 	cmd.Stderr = buffer
 	err := cmd.Run()
-	if err != nil {
-		return "", err
+	if err != nil && strings.HasPrefix(buffer.String(), "no crontab for ") {
+		// it's ok to be empty
+		return "", nil
+	} else if err != nil {
+		return "", fmt.Errorf("%w: %s", err, buffer.String())
 	}
 	return cleanupCrontab(buffer.String()), nil
+}
+
+func (c *Crontab) Rewrite() error {
+	crontab, err := c.LoadCurrent()
+	if err != nil {
+		return err
+	}
+	input := &bytes.Buffer{}
+	err = c.Update(crontab, true, input)
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command("crontab", "-")
+	cmd.Stdin = input
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Crontab) Remove() error {
+	crontab, err := c.LoadCurrent()
+	if err != nil {
+		return err
+	}
+	buffer := &bytes.Buffer{}
+	err = c.Update(crontab, false, buffer)
+	if err != nil {
+		return err
+	}
+
+	cmd := exec.Command("crontab", "-")
+	cmd.Stdin = buffer
+	cmd.Stderr = os.Stderr
+	err = cmd.Run()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func cleanupCrontab(crontab string) string {
@@ -73,12 +167,13 @@ func cleanupCrontab(crontab string) string {
 }
 
 // extractOwnSection returns before our section, inside, and after if found.
-// It is not returning both start and end markers
+// It is not returning both start and end markers.
+// If not found, it return the content in the first string
 func extractOwnSection(crontab string) (string, string, string, bool) {
 	start := strings.Index(crontab, startMarker)
 	end := strings.Index(crontab, endMarker)
 	if start == -1 || end == -1 {
-		return "", crontab, "", false
+		return crontab, "", "", false
 	}
 	return crontab[:start], crontab[start+len(startMarker) : end], crontab[end+len(endMarker):], true
 }

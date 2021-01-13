@@ -3,7 +3,6 @@
 package schedule
 
 import (
-	"os"
 	"strings"
 
 	"github.com/creativeprojects/resticprofile/calendar"
@@ -21,7 +20,22 @@ func (j *Job) createCrondJob(schedules []*calendar.Event) error {
 		entries[i] = crond.NewEntry(event, j.config.Configfile(), j.config.Title(), j.config.SubTitle(), j.config.Command()+" "+strings.Join(j.config.Arguments(), " "))
 	}
 	crontab := crond.NewCrontab(j.config.Command(), entries)
-	crontab.Generate(os.Stdout)
+	err := crontab.Rewrite()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (j *Job) removeCrondJob() error {
+	entries := []crond.Entry{
+		crond.NewEntry(calendar.NewEvent(), j.config.Configfile(), j.config.Title(), j.config.SubTitle(), j.config.Command()+" "+strings.Join(j.config.Arguments(), " ")),
+	}
+	crontab := crond.NewCrontab(j.config.Command(), entries)
+	err := crontab.Remove()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

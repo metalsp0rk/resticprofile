@@ -27,6 +27,10 @@ func NewCrontab(name string, entries []Entry) *Crontab {
 	}
 }
 
+func (c *Crontab) Update(crontab string) {
+	//
+}
+
 func (c *Crontab) Generate(w io.StringWriter) error {
 	var err error
 
@@ -82,7 +86,8 @@ func extractOwnSection(crontab string) (string, string, string, bool) {
 func deleteLine(crontab string, entry Entry) (string, bool, error) {
 	// should match a line like:
 	// 00,15,30,45 * * * *	/home/resticprofile --no-ansi --config config.yaml --name profile --log backup.log backup
-	search := fmt.Sprintf(`(?m)^[^#][^\n]+resticprofile[^\n]+--name %s[^\n]* %s\n`,
+	search := fmt.Sprintf(`(?m)^[^#][^\n]+resticprofile[^\n]+--config %s --name %s[^\n]* %s\n`,
+		regexp.QuoteMeta(entry.configFile),
 		regexp.QuoteMeta(entry.profileName),
 		regexp.QuoteMeta(entry.commandName),
 	)

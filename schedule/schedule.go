@@ -35,6 +35,7 @@ type Config interface {
 	Environment() map[string]string
 	Priority() string
 	Logfile() string
+	Configfile() string
 }
 
 // Job scheduler

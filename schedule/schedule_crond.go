@@ -18,7 +18,7 @@ const (
 func (j *Job) createCrondJob(schedules []*calendar.Event) error {
 	entries := make([]crond.Entry, len(schedules))
 	for i, event := range schedules {
-		entries[i] = crond.NewEntry(event, j.config.Title(), j.config.SubTitle(), j.config.Command()+" "+strings.Join(j.config.Arguments(), " "))
+		entries[i] = crond.NewEntry(event, j.config.Configfile(), j.config.Title(), j.config.SubTitle(), j.config.Command()+" "+strings.Join(j.config.Arguments(), " "))
 	}
 	crontab := crond.NewCrontab(j.config.Command(), entries)
 	crontab.Generate(os.Stdout)

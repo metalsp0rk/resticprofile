@@ -13,15 +13,17 @@ import (
 // Entry represents a new line in the crontab
 type Entry struct {
 	event       *calendar.Event
+	configFile  string
 	profileName string
 	commandName string
 	commandLine string
 }
 
 // NewEntry creates a new crontab entry
-func NewEntry(event *calendar.Event, profileName, commandName, commandLine string) Entry {
+func NewEntry(event *calendar.Event, configFile, profileName, commandName, commandLine string) Entry {
 	return Entry{
 		event:       event,
+		configFile:  configFile,
 		profileName: profileName,
 		commandName: commandName,
 		commandLine: commandLine,

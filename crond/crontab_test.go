@@ -23,7 +23,7 @@ func TestSimpleUserCrontab(t *testing.T) {
 	crontab := NewCrontab("simple", []Entry{NewEntry(calendar.NewEvent(func(event *calendar.Event) {
 		event.Minute.MustAddValue(1)
 		event.Hour.MustAddValue(1)
-	}), "", "", "resticprofile backup")})
+	}), "", "", "", "resticprofile backup")})
 	buffer := &strings.Builder{}
 	err := crontab.Generate(buffer)
 	require.NoError(t, err)
@@ -59,7 +59,7 @@ func TestDeleteLine(t *testing.T) {
 
 	for _, testRun := range testData {
 		t.Run("", func(t *testing.T) {
-			_, found, err := deleteLine(testRun.source, Entry{profileName: "profile", commandName: "backup"})
+			_, found, err := deleteLine(testRun.source, Entry{configFile: "config.yaml", profileName: "profile", commandName: "backup"})
 			require.NoError(t, err)
 			assert.Equal(t, testRun.expected, found)
 		})

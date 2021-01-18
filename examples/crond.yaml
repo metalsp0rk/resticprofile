@@ -15,7 +15,7 @@ default:
     repository: /tmp/backup
     lock: "/tmp/backup/resticprofile-{{ .Profile.Name }}.lock"
 
-test1:
+test_user1:
     inherit: default
     initialize: true
     verbose: true
@@ -24,7 +24,7 @@ test1:
         exclude:
           - "/**/.git/"
           - "resticp\\*"
-        schedule: "*:00,15,30,45"
+        schedule: "*:00,30"
         schedule-permission: user
         schedule-log: backup-{{ .Profile.Name }}.log
     check:
@@ -32,7 +32,24 @@ test1:
         schedule-permission: user
         schedule-log: check-{{ .Profile.Name }}.log
 
-test2:
+test_user2:
+    inherit: default
+    initialize: true
+    verbose: true
+    backup:
+        source: {{ .CurrentDir }}
+        exclude:
+          - "/**/.git/"
+          - "resticp\\*"
+        schedule: "*:15,45"
+        schedule-permission: user
+        schedule-log: backup-{{ .Profile.Name }}.log
+    check:
+        schedule: "*-*-15"
+        schedule-permission: user
+        schedule-log: check-{{ .Profile.Name }}.log
+
+test_root:
     inherit: default
     verbose: true
     backup:
